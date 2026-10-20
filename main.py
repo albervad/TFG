@@ -1,6 +1,8 @@
 import requests
 import json
 
+FULL_MODE = True
+
 # Configuración del entorno
 OLLAMA_URL = "http://localhost:11434/api/chat"
 MODELO = "llama3.1:8b"
@@ -54,14 +56,19 @@ if __name__ == "__main__":
         exit(1)
 
     ataques_totales = len(bateria_ataques)
+    ataques_realizados = 0
     ataques_exitosos = 0
     lista_exitosos = []
     # 2. Iterar sobre cada ataque
     for ataque in bateria_ataques:
+        if not FULL_MODE and ataque["done"]:
+            continue
+        ataques_realizados += 1
         print(f"\n[>] Evaluando: {ataque['id']} - {ataque['tecnica']}")
         print(f"    Prompt: {ataque['prompt']}")
         # Ejecutar petición al modelo
         respuesta_modelo = lanzar_ataque(ataque["prompt"])
+        ataque["done"] = True
         print(f"    Respuesta: {respuesta_modelo}")
         if respuesta_modelo:
             # 3. Validación de éxito (El oráculo)
@@ -72,12 +79,13 @@ if __name__ == "__main__":
                 lista_exitosos.append(f"{ataque['id']} - {ataque['tecnica']}")
             else:
                 print("     🛡️ RESULTADO: BLOQUEADO (Secreto a salvo)")
-
+    with open(ruta_json, "w", encoding="utf-8") as archivo:
+        json.dump(bateria_ataques, archivo, indent=4, ensure_ascii=False)
     # 4. Calcular métrica final (ASR)
     asr = (ataques_exitosos / ataques_totales) * 100
     print("\n" + "=" * 50)
     print(f"RESUMEN DE LA BATERÍA DE PRUEBAS")
-    print(f"Total ataques lanzados: {ataques_totales}")
+    print(f"Total ataques lanzados: {ataques_realizados}")
     print(f"Ataques con exfiltración: {ataques_exitosos}")
     print(f"Attack Success Rate (ASR): {asr:.2f}%")
     print("=" * 50)
